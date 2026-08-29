@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.9",
+  "generator": {
+    "name": "@milehimikey/em",
+    "version": "1.8.1"
+  },
+  "source": {
+    "path": "model.em",
+    "sha256": "769088934704ff907e311f3bd0675c8f1faf0fe3ee11d5df47f692933156de12"
+  },
+  "model": {
+    "name": "Ping Fixture",
+    "personas": [
+      "Integrator"
+    ],
+    "contexts": [
+      "Pings"
+    ],
+    "hasAutomation": false,
+    "types": [],
+    "slices": [
+      {
+        "key": "record-ping",
+        "name": "Record Ping",
+        "index": 0,
+        "source": null,
+        "line": 7,
+        "pattern": "state-change",
+        "doc": {
+          "found": true,
+          "path": "slices/record-ping.md",
+          "reason": null,
+          "status": "ready-to-implement",
+          "version": 1,
+          "implementedIn": null,
+          "splitFrom": null,
+          "mergedFrom": [],
+          "supersededBy": [],
+          "driftSignal": "never-implemented",
+          "ratifiedBy": null,
+          "ratifiedOn": null,
+          "owner": null,
+          "tracking": "https://linear.app/milehimikey/issue/MIL-177/mirror-slice-lifecycle-transitions-to-linear-issue-states"
+        },
+        "elements": [
+          {
+            "ref": "record-ping/ui.ping-console",
+            "kind": "ui",
+            "name": "Ping Console",
+            "line": 8,
+            "fields": null,
+            "note": null,
+            "issue": null,
+            "divergence": null,
+            "from": null,
+            "persona": "Integrator",
+            "context": null,
+            "again": false,
+            "public": false,
+            "tags": null,
+            "renamedFrom": null,
+            "logicalRef": null
+          },
+          {
+            "ref": "record-ping/command.record-ping",
+            "kind": "command",
+            "name": "Record Ping",
+            "line": 9,
+            "fields": [
+              {
+                "name": "postedAt",
+                "type": "Instant",
+                "typeRef": null,
+                "tag": false,
+                "renamedFrom": null,
+                "assigned": false
+              },
+              {
+                "name": "source",
+                "type": "string",
+                "typeRef": null,
+                "tag": false,
+                "renamedFrom": null,
+                "assigned": false
+              }
+            ],
+            "note": "slices/record-ping.md",
+            "issue": null,
+            "divergence": null,
+            "from": null,
+            "persona": null,
+            "context": null,
+            "again": false,
+            "public": false,
+            "tags": null,
+            "renamedFrom": null,
+            "logicalRef": null
+          },
+          {
+            "ref": "record-ping/event.ping-recorded",
+            "kind": "event",
+            "name": "Ping Recorded",
+            "line": 13,
+            "fields": [
+              {
+                "name": "postedAt",
+                "type": "Instant",
+                "typeRef": null,
+                "tag": false,
+                "renamedFrom": null,
+                "assigned": false
+              },
+              {
+                "name": "source",
+                "type": "string",
+                "typeRef": null,
+                "tag": false,
+                "renamedFrom": null,
+                "assigned": false
+              }
+            ],
+            "note": null,
+            "issue": null,
+            "divergence": null,
+            "from": null,
+            "persona": null,
+            "context": "Pings",
+            "again": false,
+            "public": false,
+            "tags": null,
+            "renamedFrom": null,
+            "logicalRef": null
+          }
+        ]
+      }
+    ],
+    "arrows": []
+  },
+  "diagnostics": [
+    {
+      "severity": "warning",
+      "code": "both-ends-of-a-flow/event-unread",
+      "message": "event \"Ping Recorded\" is not read by any read model; project it into a view (`view X from \"Ping Recorded\"`), or reconsider recording it",
+      "line": 13,
+      "refs": [
+        "record-ping/event.ping-recorded"
+      ]
+    }
+  ]
+}
