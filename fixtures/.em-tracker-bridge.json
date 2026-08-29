@@ -1,0 +1,14 @@
+{
+  "tracker": "linear",
+  "stateMap": {
+    "draft": null,
+    "reviewed": "Backlog",
+    "ready-to-implement": "Todo",
+    "in-progress": "In Progress",
+    "implemented": "Done"
+  },
+  "branchDetection": {
+    "enabled": true,
+    "includeRemote": true
+  }
+}
