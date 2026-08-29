@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.8",
+  "generator": { "name": "@milehimikey/em", "version": "1.8.1" },
+  "source": { "path": "fixtures/model.em", "sha256": "8e7119da831a618d6ac463478a18c5ffee5a7bb67bc57931c898a46f6e5180c4" },
+  "model": {
+    "name": "Ping Fixture",
+    "personas": ["Integrator"],
+    "contexts": ["Pings"],
+    "hasAutomation": false,
+    "slices": [
+      {
+        "key": "record-ping",
+        "name": "Record Ping",
+        "index": 0,
+        "line": 7,
+        "pattern": "state-change",
+        "doc": {
+          "found": true,
+          "path": "slices/record-ping.md",
+          "reason": null,
+          "status": "implemented",
+          "version": 2,
+          "implementedIn": "https://github.com/milehimikey/meridian-goods/pull/42",
+          "splitFrom": null,
+          "mergedFrom": [],
+          "supersededBy": [],
+          "driftSignal": "in-sync",
+          "ratifiedBy": "milehimikey",
+          "ratifiedOn": "2026-08-20",
+          "tracking": "https://linear.app/milehimikey/issue/MIL-177/mirror-slice-lifecycle-transitions-to-linear-issue-states"
+        },
+        "elements": [
+          {
+            "ref": "record-ping/command.record-ping",
+            "kind": "command",
+            "name": "Record Ping",
+            "line": 9,
+            "fields": [{ "name": "postedAt", "type": "Instant" }],
+            "note": "slices/record-ping.md",
+            "issue": null,
+            "from": null,
+            "persona": null,
+            "context": null,
+            "again": false,
+            "logicalRef": null
+          }
+        ]
+      }
+    ],
+    "arrows": []
+  },
+  "diagnostics": []
+}
