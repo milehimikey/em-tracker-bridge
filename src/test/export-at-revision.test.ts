@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { readFileAtRevision, exportAtRevision, exportAtSide } from "../lib/export-at-revision.js";
@@ -114,5 +114,70 @@ describe.skipIf(!hasEm())("exportAtRevision / exportAtSide (real em)", () => {
     const beforeSha = git(dir, ["rev-parse", "HEAD"]).trim();
 
     expect(exportAtRevision(dir, path.join(dir, "model.em"), beforeSha)).toBeUndefined();
+  });
+
+  // Regression test for a real bug caught during MIL-177 integration testing
+  // against a meridian-goods-shaped repo: an earlier version of
+  // exportAtRevision wrote ONLY the model file into an empty temp dir, so a
+  // slice's `note "slices/<key>.md"` doc binding -- resolved by `em`
+  // relative to the model file's own directory, the normal real-project
+  // layout -- silently failed to join ("no such file exists"), and every
+  // slice's `doc.status`/`doc.tracking` read back as null/not-found. The
+  // fix reconstructs the FULL repo tree at the revision (git archive), not
+  // just the model file, so sibling directories resolve exactly as they
+  // would on disk.
+  it("resolves a slice doc bound via note in a sibling directory, at a given revision", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "em-tracker-bridge-export-rev-docjoin-"));
+    tmpDirs.push(dir);
+    git(dir, ["init", "-q"]);
+    git(dir, ["config", "user.email", "test@example.com"]);
+    git(dir, ["config", "user.name", "Test"]);
+
+    const modelPath = path.join(dir, "model.em");
+    mkdirSync(path.join(dir, "slices"));
+    writeFileSync(
+      modelPath,
+      [
+        'model "Doc Join Test"',
+        "",
+        "persona Integrator",
+        "context Pings",
+        "",
+        'slice "Record Ping" {',
+        "  ui Ping Console @Integrator",
+        '  command Record Ping note "slices/record-ping.md" {',
+        "    postedAt: Instant",
+        "  }",
+        "  event Ping Recorded @Pings {",
+        "    postedAt: Instant",
+        "  }",
+        "}",
+        "",
+      ].join("\n")
+    );
+    writeFileSync(
+      path.join(dir, "slices", "record-ping.md"),
+      [
+        "---",
+        "schemaVersion: 1",
+        "pattern: state-change",
+        "swimlane: Integrator → Pings",
+        "status: ready-to-implement",
+        "version: 1",
+        "tracking: https://linear.app/example/issue/EX-1/test",
+        "---",
+        "# Slice: Record Ping",
+        "",
+      ].join("\n")
+    );
+    git(dir, ["add", "."]);
+    git(dir, ["commit", "-q", "-m", "v1"]);
+    const v1Sha = git(dir, ["rev-parse", "HEAD"]).trim();
+
+    const atV1 = exportAtRevision(dir, modelPath, v1Sha);
+    const slice = atV1?.model.slices.find((s) => s.key === "record-ping");
+    expect(slice?.doc.found).toBe(true);
+    expect(slice?.doc.status).toBe("ready-to-implement");
+    expect(slice?.doc.tracking).toBe("https://linear.app/example/issue/EX-1/test");
   });
 });

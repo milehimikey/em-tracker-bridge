@@ -1,17 +1,26 @@
 /**
- * Types for `em export` JSON. Verified against em main (schema 1.8,
- * MIL-165's `ratifiedBy`/`ratifiedOn` fields) as of 2026-08-28 -- see
- * README.md's "Building against em MIL-171" section.
+ * Types for `em export` JSON. `tracking`/`owner` verified against em
+ * MIL-171 (merged to `em` main in PR #126, 2026-08-28 -- schemaVersion
+ * "1.9"), by regenerating fixtures/export-record-ping-*.json from a real
+ * pre-release build (see README.md's "Building against em MIL-171"
+ * section). Both are `string | null`, always present on `slice.doc`
+ * alongside `status`/`ratifiedBy`, exactly as this package was built
+ * against before MIL-171 shipped -- no shape surprises.
  *
- * `tracking` on `ExportedSliceDoc` is the one field NOT yet on any tagged
- * `em` release: it's the export-side surface of em's MIL-171 (surfacing the
- * slice doc's `tracking:` frontmatter key, a ticket URL), which had no
- * branch, PR, or source trace in the `em` repo as of this package's 0.1.0
- * scaffold. This package is built against the field's documented SHAPE
- * (`string | null`, sitting alongside `status`/`ratifiedBy` on `slice.doc`)
- * using fixture JSON (fixtures/export-with-tracking.json) rather than a
- * real `em` release. Once MIL-171 merges and ships, regenerate the fixture
- * from the real CLI and delete this comment's caveat.
+ * MIL-171's release also carries fields this package doesn't consume and
+ * deliberately does NOT model here (extra JSON keys are harmless against a
+ * `JSON.parse(...) as ExportedModel` cast): a slice-level `source` (MIL-69,
+ * a ticket URL sourcing the slice itself, distinct from `doc.tracking`),
+ * `model.types`, and several new per-element fields (`divergence`,
+ * `public`, `tags`, `renamedFrom`) and per-field fields (`typeRef`, `tag`,
+ * `renamedFrom`, `assigned`). None of them affect lifecycle-transition
+ * detection or the Linear adapter -- only `slice.key`, `slice.doc.status`,
+ * and `slice.doc.tracking` are read anywhere in this package.
+ *
+ * `MINIMUM_EM_VERSION` (check-em-version.ts) stays at `1.8.0` -- the last
+ * *tagged* `em` release -- until `em` actually ships a release carrying
+ * MIL-171 (it's merged to main but unreleased as of this note); bump it
+ * then, not now.
  */
 
 export interface ExportedField {
@@ -87,6 +96,10 @@ export interface ExportedSliceDoc {
   driftSignal: SliceDocDriftSignal;
   ratifiedBy: string | null;
   ratifiedOn: string | null;
+  /** The slice doc's `owner:` frontmatter value, or null when absent --
+   *  em's MIL-171, sibling field to `tracking`. Not read anywhere in this
+   *  package; included for shape completeness. */
+  owner: string | null;
   /** The slice doc's `tracking:` frontmatter value (a ticket URL), or null
    *  when absent -- em's MIL-171 field. See this module's doc comment. */
   tracking: string | null;

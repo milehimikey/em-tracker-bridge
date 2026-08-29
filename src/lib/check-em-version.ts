@@ -17,13 +17,16 @@
 import { execFileSync } from "node:child_process";
 import { BridgeError } from "./bridge-error.js";
 
-/** `em` version this bridge was last verified against (the installed `em`
- *  this package's own dev environment ran during 0.1.0 development). It
- *  does NOT yet carry the `tracking:` field this bridge's transition
- *  detection is built against -- that's em's MIL-171, which had no branch,
- *  PR, or source trace anywhere in the `em` repo as of this scaffold (see
- *  README.md's "Building against em MIL-171" section). Bump this floor
- *  once a tagged `em` release actually ships MIL-171. */
+/** `em` version this bridge was last verified against -- the last *tagged*
+ *  `em` release. Deliberately NOT bumped to track em's MIL-171
+ *  (`tracking:`/`owner:` on `slice.doc`, this bridge's transition
+ *  detection depends on it): MIL-171 merged to `em` main (PR #126,
+ *  2026-08-28, schemaVersion "1.9") but has not shipped in a tagged
+ *  release yet. This package's fixtures were regenerated from a real
+ *  pre-release build (see README.md's "Building against em MIL-171"
+ *  section) to confirm the shape, but the version floor stays at the last
+ *  real release until consumers can actually install one that carries it --
+ *  bump it then, not now. */
 export const MINIMUM_EM_VERSION = "1.8.0";
 
 export interface Semver {

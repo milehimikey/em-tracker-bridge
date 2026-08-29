@@ -80,31 +80,40 @@ auto-upgrade `em`.
 
 The heart of this bridge — matching a slice to a tracker issue — depends on
 `em export` surfacing a slice doc's `tracking:` frontmatter key (a ticket
-URL) as `slice.doc.tracking`. As of this package's 0.1.0 scaffold, **that
-field does not exist in any `em` branch, PR, or tagged release** (confirmed
-against `em` main, 2026-08-28: no commit, branch, or source trace of
-MIL-171 anywhere). `MINIMUM_EM_VERSION` therefore currently points at the
-last `em` release this package's own development verified against (`1.8.0`,
-which does NOT carry `tracking`) — not at a release that actually satisfies
-this bridge's real needs.
+URL) as `slice.doc.tracking`. **Update, 2026-08-28: MIL-171 has merged to
+`em` main** (PR #126 — schemaVersion bumped to `"1.9"`, `tracking`/`owner`
+now real fields on `slice.doc`) **but has not shipped in a tagged `em`
+release yet.**
 
-Until MIL-171 ships, this package is built and tested entirely against
-fixture JSON in the documented shape (`fixtures/export-record-ping-*.json`
-— `tracking: string | null` sitting alongside `status`/`ratifiedBy` on
-`slice.doc`, per the task brief this package was scoped from). **Every
-slice's `tracking` field reads as `null` against any real `em` install
-today**, which this bridge treats as a visible no-op (see "Unlinked
-slices" below), never an error — so running this package against a real
-model right now is safe, just inert.
+`fixtures/export-record-ping-ready.json` /
+`-implemented.json` are no longer hand-authored: they were regenerated
+against a real pre-release build (`cd em && git pull && npm install &&
+npm run build && npm pack`, installed globally, then `em export` run for
+real against a small model + slice doc carrying `tracking:` frontmatter).
+The `tracking` field's actual shape matched what this package was built
+against exactly — `string | null`, sitting alongside `status`/`ratifiedBy`
+on `slice.doc`, no surprises. The real export also carries fields this
+package doesn't consume and doesn't model (a slice-level `source`,
+`model.types`, several new per-element/per-field fields) — see
+`src/lib/export-model.ts`'s doc comment for the full list; none of them
+affect lifecycle-transition detection or the Linear adapter.
 
-Once MIL-171 merges and ships in a tagged `em` release:
+`MINIMUM_EM_VERSION` (`src/lib/check-em-version.ts`) **stays at `1.8.0`**
+— the last tagged release — on purpose: bumping it to `1.9.0`/whatever
+version ships MIL-171 before that version actually exists would make every
+consumer's version-floor check pass against an `em` that doesn't exist yet.
+**Every slice's `tracking` field still reads as `null` against any
+currently-installable `em`**, which this bridge treats as a visible no-op
+(see "Unlinked slices" below), never an error — so running this package
+against a real model today is safe, just inert.
+
+Once `em` actually ships a tagged release carrying MIL-171:
 
 1. Bump `MINIMUM_EM_VERSION` in `src/lib/check-em-version.ts` to that
-   release.
-2. Regenerate the fixtures from the real CLI (`npm run build && npm pack`
-   → install the tarball elsewhere and run its `em export`, or
-   `npx tsx src/cli.ts export ...` from an `em` checkout) instead of
-   hand-authoring the `tracking` field.
+   release (not before).
+2. Re-regenerate the fixtures against that release's real, published `em`
+   (rather than a locally-built pre-release tarball) if anything in the
+   shape changed between the pre-release build and the actual release.
 3. Delete this section's caveats once they're no longer true.
 
 ## The state-mapping seam
@@ -176,13 +185,23 @@ transition instead means running `em export` **twice** — once per git
 revision — and diffing `slice.doc.status` client-side. That's exactly what
 `src/lib/export-at-revision.ts` and `src/lib/transitions.ts` do:
 
-1. `readFileAtRevision`/`exportAtRevision` reads the model file's content at
-   a given git revision via `git show <rev>:<path>` (mirroring, at the
-   shell level, the same approach `em diff`'s own `--from`/`--to` flags use
-   internally — `em export` itself has no revision flags, only `--slice`),
-   writes it to a throwaway temp file, and runs the real `em export`
-   against that temp file — so nothing about `em`'s own export logic is
-   reimplemented or bypassed.
+1. `exportAtRevision` reconstructs the **full repo tree** at a given git
+   revision (`git archive <rev> | tar -x`, mirroring, at the shell level,
+   the same git plumbing `em diff`'s own `--from`/`--to` flags use
+   internally — `em export` itself has no revision flags, only `--slice`)
+   into a throwaway temp directory, then runs the real `em export` against
+   the model file at its correct relative path within it. **Not** just the
+   model file in isolation — a real bug caught during MIL-177's own
+   integration testing: `em`'s doc-join resolves a slice's bound doc (the
+   `note "slices/<key>.md"` convention) relative to the model file's own
+   directory, so a project keeping slice docs in a sibling directory (the
+   norm — confirmed against a real meridian-goods-shaped repo) needs that
+   directory reconstructed too, or every slice's doc-join silently reads
+   as "no such file exists" and every status/tracking read comes back
+   null. See `src/test/export-at-revision.test.ts`'s regression test.
+   `readFileAtRevision` still answers the cheap "did the model file exist
+   at this revision at all" / "is this even a valid revision" question
+   before paying for a full-tree archive.
 2. `computeTransitions` compares each tracked slice's `status` between the
    "from" and "to" snapshots. A status that didn't change produces no
    transition (not a reported no-op); a slice with no `tracking` URL that

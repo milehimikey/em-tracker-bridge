@@ -11,13 +11,15 @@
  * `ChangeType` for a status transition. So detecting a status transition
  * means running `em export` twice (once per revision) and diffing
  * `slice.doc.status` client-side, which is exactly what this module and
- * lib/transitions.ts do. `git show <rev>:<path>` is done here, ourselves,
- * mirroring the internal approach em's own `--from`/`--to` uses for `em
- * diff` (per em's src/cli/diff-inputs.ts).
+ * lib/transitions.ts do. Reconstructing a revision's tree ourselves (via
+ * `git archive`, see exportAtRevision below) is the same kind of git
+ * plumbing em's own `--from`/`--to` do internally for `em diff` (per em's
+ * src/cli/diff-inputs.ts), applied here to a real `em export` invocation
+ * instead.
  */
 
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { BridgeError } from "./bridge-error.js";
@@ -56,21 +58,46 @@ export function readFileAtRevision(repoRootGit: string, absoluteFilePath: string
 }
 
 /**
- * Runs `em export` against the model as it existed at `rev`, by writing the
- * revision's content to a throwaway temp file (so `em`'s own file-reading
- * and repo-root-relative source-path logic runs unmodified) and cleaning up
- * afterward. Returns `undefined` when the model file did not exist at
- * `rev` (see readFileAtRevision) -- a legitimate "no prior export", never
- * an error.
+ * Runs `em export` against the model as it existed at `rev`.
+ *
+ * Reconstructs the FULL repo tree at `rev` into a throwaway temp directory
+ * via `git archive | tar -x`, preserving every file's path relative to the
+ * repo root -- not just the model file in isolation. This matters: `em`'s
+ * doc-join resolves a slice's bound doc (the `note "slices/<key>.md"`
+ * convention) relative to the model file's own directory, so any real
+ * project keeping slice docs in a sibling directory (the norm -- confirmed
+ * against a real meridian-goods-shaped repo during MIL-177 integration
+ * testing, where an earlier single-file-only version of this function
+ * produced a silent "no such file exists" doc-join failure and reported
+ * zero transitions) needs that sibling directory present too. Writing only
+ * the model file to an empty temp dir looks like it works against a
+ * fixture with no doc bindings, but is wrong for anything with slice docs.
+ *
+ * Returns `undefined` when the model file did not exist at `rev` (see
+ * readFileAtRevision) -- a legitimate "no prior export", never an error.
  */
 export function exportAtRevision(repoRootGit: string, absoluteModelPath: string, rev: string): ExportedModel | undefined {
-  const content = readFileAtRevision(repoRootGit, absoluteModelPath, rev);
-  if (content === undefined) return undefined;
+  // Cheap existence/bad-revision check first (see readFileAtRevision's own
+  // doc comment) before paying for a full-tree archive.
+  const exists = readFileAtRevision(repoRootGit, absoluteModelPath, rev) !== undefined;
+  if (!exists) return undefined;
+
+  const relModelPath = path.relative(repoRootGit, absoluteModelPath);
 
   const tmpDir = mkdtempSync(path.join(tmpdir(), "em-tracker-bridge-"));
   try {
-    const tmpModelPath = path.join(tmpDir, path.basename(absoluteModelPath));
-    writeFileSync(tmpModelPath, content, "utf8");
+    const archive = spawnSync("git", ["-C", repoRootGit, "archive", rev], { maxBuffer: 1024 * 1024 * 1024 });
+    if (archive.status !== 0) {
+      const stderr = archive.stderr?.toString("utf8") ?? "";
+      throw new BridgeError(`\`git archive ${rev}\` failed: ${stderr || `exit code ${archive.status}`}`);
+    }
+    const extract = spawnSync("tar", ["-x", "-C", tmpDir], { input: archive.stdout });
+    if (extract.status !== 0) {
+      const stderr = extract.stderr?.toString("utf8") ?? "";
+      throw new BridgeError(`Extracting the \`git archive ${rev}\` snapshot failed: ${stderr || `exit code ${extract.status}`}`);
+    }
+
+    const tmpModelPath = path.join(tmpDir, relModelPath);
     return runEmExport(tmpModelPath);
   } finally {
     rmSync(tmpDir, { recursive: true, force: true });
